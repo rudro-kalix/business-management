@@ -87,7 +87,7 @@ function App() {
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-slate-100">
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-              GPT Reseller Pro
+              Rudmax Mastermind
             </h1>
             <p className="text-xs text-slate-400 mt-1">Manage your subscriptions</p>
           </div>
