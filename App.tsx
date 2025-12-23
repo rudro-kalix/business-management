@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Calculator, Receipt, Bot, Menu, X } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { ProfitCalculator } from './components/ProfitCalculator';
@@ -25,8 +25,27 @@ type ViewState = 'dashboard' | 'calculator' | 'transactions' | 'ai';
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
+
+  // Initialize state from LocalStorage or fallback to initial data
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const saved = localStorage.getItem('gpt_reseller_transactions');
+    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+  });
+
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    const saved = localStorage.getItem('gpt_reseller_expenses');
+    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+  });
+
+  // Save to LocalStorage whenever transactions change
+  useEffect(() => {
+    localStorage.setItem('gpt_reseller_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  // Save to LocalStorage whenever expenses change
+  useEffect(() => {
+    localStorage.setItem('gpt_reseller_expenses', JSON.stringify(expenses));
+  }, [expenses]);
 
   // Transaction Handlers
   const addTransaction = (newT: Omit<Transaction, 'id'>) => {
