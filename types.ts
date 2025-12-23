@@ -10,13 +10,18 @@ export interface Transaction {
   date: string;
   customerName: string;
   planType: PlanType;
-  costPrice: number; // Base subscription cost
-  gmailCost?: number; // Cost of the gmail account
-  fbAdCost?: number; // Marketing cost allocation (FB)
-  posterCost?: number; // Marketing cost allocation (Poster)
+  costPrice: number; // Base subscription cost (COGS)
   salePrice: number; // Price sold to customer
   currency: string;
   notes?: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: 'Gmail' | 'Facebook Ads' | 'Poster' | 'Other';
+  amount: number;
+  description?: string;
 }
 
 export interface BusinessMetrics {

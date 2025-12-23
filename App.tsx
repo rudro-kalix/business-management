@@ -3,15 +3,21 @@ import { LayoutDashboard, Calculator, Receipt, Bot, Menu, X } from 'lucide-react
 import { Dashboard } from './components/Dashboard';
 import { ProfitCalculator } from './components/ProfitCalculator';
 import { AIAnalyst } from './components/AIAnalyst';
-import { Transaction, PlanType } from './types';
+import { Transaction, PlanType, Expense } from './types';
 
 // Initial Dummy Data
 const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: '1', date: '2023-10-24', customerName: 'Alice Johnson', planType: PlanType.PLUS, costPrice: 20, gmailCost: 1.5, fbAdCost: 2, posterCost: 0.5, salePrice: 28, currency: 'USD' },
-  { id: '2', date: '2023-10-25', customerName: 'TechCorp Inc', planType: PlanType.TEAM, costPrice: 50, gmailCost: 1.5, fbAdCost: 5, posterCost: 0, salePrice: 80, currency: 'USD' },
-  { id: '3', date: '2023-10-25', customerName: 'Bob Smith', planType: PlanType.PLUS, costPrice: 20, gmailCost: 1.5, fbAdCost: 1, posterCost: 1, salePrice: 28, currency: 'USD' },
-  { id: '4', date: '2023-10-26', customerName: 'Charlie Brown', planType: PlanType.API_CREDITS, costPrice: 100, gmailCost: 0, fbAdCost: 10, posterCost: 0, salePrice: 140, currency: 'USD' },
-  { id: '5', date: '2023-10-27', customerName: 'Dave Wilson', planType: PlanType.PLUS, costPrice: 20, gmailCost: 1.5, fbAdCost: 2.5, posterCost: 0.5, salePrice: 26, currency: 'USD' }, 
+  { id: '1', date: '2023-10-24', customerName: 'Alice Johnson', planType: PlanType.PLUS, costPrice: 10, salePrice: 28, currency: 'USD' },
+  { id: '2', date: '2023-10-25', customerName: 'TechCorp Inc', planType: PlanType.TEAM, costPrice: 25, salePrice: 80, currency: 'USD' },
+  { id: '3', date: '2023-10-25', customerName: 'Bob Smith', planType: PlanType.PLUS, costPrice: 10, salePrice: 28, currency: 'USD' },
+  { id: '4', date: '2023-10-26', customerName: 'Charlie Brown', planType: PlanType.API_CREDITS, costPrice: 50, salePrice: 100, currency: 'USD' },
+  { id: '5', date: '2023-10-27', customerName: 'Dave Wilson', planType: PlanType.PLUS, costPrice: 10, salePrice: 26, currency: 'USD' }, 
+];
+
+const INITIAL_EXPENSES: Expense[] = [
+    { id: 'e1', date: '2023-10-20', category: 'Facebook Ads', amount: 50, description: 'Weekend Campaign' },
+    { id: 'e2', date: '2023-10-22', category: 'Gmail', amount: 20, description: '10 Accounts Batch' },
+    { id: 'e3', date: '2023-10-25', category: 'Poster', amount: 30, description: 'Local flyers' },
 ];
 
 type ViewState = 'dashboard' | 'calculator' | 'transactions' | 'ai';
@@ -20,6 +26,7 @@ function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
 
   const addTransaction = (newT: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
@@ -28,6 +35,14 @@ function App() {
     };
     setTransactions(prev => [...prev, transaction]);
   };
+
+  const addExpense = (newE: Omit<Expense, 'id'>) => {
+    const expense: Expense = {
+      ...newE,
+      id: Math.random().toString(36).substr(2, 9)
+    };
+    setExpenses(prev => [...prev, expense]);
+  }
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
     <button
@@ -60,25 +75,15 @@ function App() {
           
           <nav className="flex-1 p-4 space-y-2">
             <NavItem view="dashboard" icon={LayoutDashboard} label="Dashboard" />
-            <NavItem view="calculator" icon={Calculator} label="Profit Calculator" />
+            <NavItem view="calculator" icon={Calculator} label="Campaign Calculator" />
             <NavItem view="ai" icon={Bot} label="AI Analyst" />
-            <div className="pt-4 mt-4 border-t border-slate-100">
-               <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                 Tools
-               </div>
-               {/* Just reusing the component for structure, simplified for demo */}
-               <button className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors opacity-50 cursor-not-allowed">
-                  <Receipt size={20} />
-                  <span>Invoices (Coming Soon)</span>
-               </button>
-            </div>
           </nav>
 
           <div className="p-4 border-t border-slate-100">
             <div className="bg-indigo-50 rounded-xl p-4">
               <p className="text-xs font-semibold text-indigo-800">Pro Tip</p>
               <p className="text-xs text-indigo-600 mt-1">
-                Enter your Gmail & Ad costs in the calculator to see true margins.
+                Add your total ad & gmail costs in the Expenses list to see your true net profit.
               </p>
             </div>
           </div>
@@ -108,18 +113,23 @@ function App() {
             <header className="mb-8 hidden lg:block">
               <h2 className="text-2xl font-bold text-slate-900">
                 {currentView === 'dashboard' && 'Dashboard Overview'}
-                {currentView === 'calculator' && 'True Profit Calculator'}
+                {currentView === 'calculator' && 'Campaign Profitability'}
                 {currentView === 'ai' && 'AI Business Intelligence'}
               </h2>
               <p className="text-slate-500 mt-1">
-                {currentView === 'dashboard' && 'Track your sales performance and net margins.'}
-                {currentView === 'calculator' && 'Calculate profitability including marketing and account costs.'}
+                {currentView === 'dashboard' && 'Track your sales, total expenses, and net profit.'}
+                {currentView === 'calculator' && 'Calculate how many sales you need to cover your total costs.'}
                 {currentView === 'ai' && 'Get insights powered by Gemini 3 Flash.'}
               </p>
             </header>
 
             {currentView === 'dashboard' && (
-              <Dashboard transactions={transactions} onAddTransaction={addTransaction} />
+              <Dashboard 
+                transactions={transactions} 
+                expenses={expenses}
+                onAddTransaction={addTransaction}
+                onAddExpense={addExpense}
+              />
             )}
             
             {currentView === 'calculator' && (

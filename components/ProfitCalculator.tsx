@@ -1,204 +1,202 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, DollarSign, Target, Mail, Megaphone } from 'lucide-react';
+import { Calculator, DollarSign, Target, Mail, Megaphone, Users, TrendingUp } from 'lucide-react';
 
 export const ProfitCalculator: React.FC = () => {
-  // Income
-  const [price, setPrice] = useState<number>(25);
-  
-  // Costs
-  const [baseCost, setBaseCost] = useState<number>(15);
-  const [gmailCost, setGmailCost] = useState<number>(1.50);
-  const [fbAdCost, setFbAdCost] = useState<number>(2.00);
-  const [posterCost, setPosterCost] = useState<number>(0.50);
-  const [exchangeRate, setExchangeRate] = useState<number>(1);
-  const [fees, setFees] = useState<number>(0);
-  
-  // Results
-  const [totalCost, setTotalCost] = useState<number>(0);
-  const [profit, setProfit] = useState<number>(0);
-  const [margin, setMargin] = useState<number>(0);
+  // Unit Economics
+  const [salePrice, setSalePrice] = useState<number>(25);
+  const [baseCost, setBaseCost] = useState<number>(10); // Cost per subscription
 
-  const totalUnitCost = baseCost + gmailCost + fbAdCost + posterCost;
+  // Total Operational Costs (OpEx)
+  const [totalGmailCost, setTotalGmailCost] = useState<number>(50);
+  const [totalFbAdCost, setTotalFbAdCost] = useState<number>(100);
+  const [totalPosterCost, setTotalPosterCost] = useState<number>(30);
+  
+  // Volume Scenario
+  const [salesVolume, setSalesVolume] = useState<number>(20);
+
+  // Results
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const [totalCOGS, setTotalCOGS] = useState<number>(0);
+  const [totalOpEx, setTotalOpEx] = useState<number>(0);
+  const [netProfit, setNetProfit] = useState<number>(0);
+  const [breakEvenPoint, setBreakEvenPoint] = useState<number>(0);
 
   useEffect(() => {
-    // Logic: (Sale Price - Fees) - ((Base + Gmail + Ads + Poster) * Exchange Rate)
-    // Assuming Marketing/Gmail costs are in the same currency base as Base Cost (often USD for resellers)
-    // or typically these are local costs. Let's assume user inputs everything in one currency or converts mentally, 
-    // but usually Base Cost is USD.
-    // To keep it simple but flexible: We assume all Cost inputs are in the same currency unit as Base Cost.
-    
-    const totalCostConverted = totalUnitCost * exchangeRate;
-    
-    const netSale = price - fees;
-    const calcProfit = netSale - totalCostConverted;
-    const calcMargin = netSale > 0 ? (calcProfit / netSale) * 100 : 0;
+    // 1. Calculate Totals
+    const revenue = salePrice * salesVolume;
+    const cogs = baseCost * salesVolume; // Cost of Goods Sold
+    const opEx = totalGmailCost + totalFbAdCost + totalPosterCost;
 
-    setTotalCost(totalCostConverted);
-    setProfit(calcProfit);
-    setMargin(calcMargin);
-  }, [totalUnitCost, price, exchangeRate, fees]);
+    // 2. Net Profit
+    const profit = revenue - cogs - opEx;
+
+    // 3. Break Even Point (Fixed Costs / (Price - Variable Cost))
+    const contributionMargin = salePrice - baseCost;
+    const bep = contributionMargin > 0 ? Math.ceil(opEx / contributionMargin) : 9999;
+
+    setTotalRevenue(revenue);
+    setTotalCOGS(cogs);
+    setTotalOpEx(opEx);
+    setNetProfit(profit);
+    setBreakEvenPoint(bep);
+  }, [salePrice, baseCost, totalGmailCost, totalFbAdCost, totalPosterCost, salesVolume]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
       <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
         <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
           <Calculator className="w-5 h-5 text-indigo-600" />
-          True Profit Calculator
+          Campaign Profitability Calculator
         </h2>
       </div>
       
       <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           
-          {/* Revenue Section */}
-          <div className="bg-green-50/50 p-4 rounded-xl border border-green-100 space-y-4">
-            <h3 className="text-sm font-semibold text-green-800 flex items-center gap-2">
-              <DollarSign size={16} /> Revenue
+          {/* Unit Economics */}
+          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-4">
+            <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+              <Users size={16} /> Unit Economics (Per Person)
             </h3>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Selling Price (Local)</label>
-              <input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Exchange Rate (1 Cost Unit = ? Local)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={exchangeRate}
-                onChange={(e) => setExchangeRate(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Costs Section */}
-          <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-4">
-            <h3 className="text-sm font-semibold text-red-800 flex items-center gap-2">
-              <Target size={16} /> Costs Breakdown (Per Unit)
-            </h3>
-            
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Sub. Base Cost</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sale Price ($)</label>
+                <input
+                  type="number"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Base Cost ($)</label>
                 <input
                   type="number"
                   value={baseCost}
                   onChange={(e) => setBaseCost(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Mail size={12} /> Gmail Cost
-                </label>
-                <input
-                  type="number"
-                  value={gmailCost}
-                  onChange={(e) => setGmailCost(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Megaphone size={12} /> FB Ads (CPA)
-                </label>
-                <input
-                  type="number"
-                  value={fbAdCost}
-                  onChange={(e) => setFbAdCost(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Target size={12} /> Poster Cost
-                </label>
-                <input
-                  type="number"
-                  value={posterCost}
-                  onChange={(e) => setPosterCost(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
             </div>
-             <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Platform Fees</label>
+            <p className="text-xs text-blue-600 font-medium">
+              You make ${salePrice - baseCost} per sale before marketing expenses.
+            </p>
+          </div>
+
+          {/* Total Costs Section */}
+          <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 space-y-4">
+            <h3 className="text-sm font-semibold text-orange-800 flex items-center gap-2">
+              <Target size={16} /> Total Expenses (Fixed)
+            </h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                  <Mail size={12} /> Total Gmail Accounts Cost
+                </label>
                 <input
                   type="number"
-                  value={fees}
-                  onChange={(e) => setFees(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  value={totalGmailCost}
+                  onChange={(e) => setTotalGmailCost(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                  <Megaphone size={12} /> Total Facebook Ads Budget
+                </label>
+                <input
+                  type="number"
+                  value={totalFbAdCost}
+                  onChange={(e) => setTotalFbAdCost(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                  <Target size={12} /> Total Poster Marketing Cost
+                </label>
+                <input
+                  type="number"
+                  value={totalPosterCost}
+                  onChange={(e) => setTotalPosterCost(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Volume Slider */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-white">
+             <label className="block text-sm font-medium text-slate-700 mb-2 flex justify-between">
+                <span>Sales Volume Scenario</span>
+                <span className="text-indigo-600 font-bold">{salesVolume} sales</span>
+             </label>
+             <input 
+                type="range" 
+                min="0" 
+                max="200" 
+                value={salesVolume}
+                onChange={(e) => setSalesVolume(Number(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+             />
+             <div className="flex justify-between text-xs text-slate-400 mt-2">
+                <span>0</span>
+                <span>100</span>
+                <span>200+</span>
+             </div>
           </div>
 
         </div>
 
         {/* Results Column */}
-        <div className="flex flex-col justify-center space-y-6">
-          <div className="bg-indigo-50 rounded-xl p-8 text-center space-y-6">
+        <div className="flex flex-col space-y-6">
+          <div className={`rounded-xl p-8 text-center space-y-6 transition-colors duration-300 ${netProfit >= 0 ? 'bg-indigo-50' : 'bg-red-50'}`}>
             <div>
-              <p className="text-sm font-medium text-indigo-600 uppercase tracking-wide">Net Profit</p>
-              <p className={`text-5xl font-bold mt-2 ${profit >= 0 ? 'text-indigo-900' : 'text-red-600'}`}>
-                {profit.toFixed(2)}
+              <p className={`text-sm font-medium uppercase tracking-wide ${netProfit >= 0 ? 'text-indigo-600' : 'text-red-600'}`}>
+                Total Net Profit
               </p>
-              <p className="text-xs text-indigo-400 mt-1">per sale</p>
+              <p className={`text-5xl font-bold mt-2 ${netProfit >= 0 ? 'text-indigo-900' : 'text-red-600'}`}>
+                {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)}
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                 at {salesVolume} sales
+              </p>
             </div>
 
-            <div className="w-full border-t border-indigo-200"></div>
+            <div className={`w-full border-t ${netProfit >= 0 ? 'border-indigo-200' : 'border-red-200'}`}></div>
 
             <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <p className="text-xs font-medium text-indigo-500 uppercase">Margin</p>
-                    <p className={`text-2xl font-bold mt-1 ${margin >= 20 ? 'text-green-600' : 'text-orange-500'}`}>
-                    {margin.toFixed(1)}%
-                    </p>
+                <div className="text-left">
+                    <p className="text-xs text-slate-500">Total Revenue</p>
+                    <p className="text-xl font-bold text-slate-800">${totalRevenue}</p>
                 </div>
-                <div>
-                    <p className="text-xs font-medium text-indigo-500 uppercase">Total Cost</p>
-                    <p className="text-2xl font-bold mt-1 text-slate-700">
-                    {totalCost.toFixed(2)}
-                    </p>
+                 <div className="text-left">
+                    <p className="text-xs text-slate-500">Total Expenses (Fixed)</p>
+                    <p className="text-xl font-bold text-red-600">-${totalOpEx}</p>
                 </div>
-            </div>
-            
-            <div className="text-xs text-slate-500 bg-white/50 p-3 rounded-lg">
-             <span className="font-semibold">Formula:</span> Sale - (Sub + Gmail + FB + Poster + Fees)
+                 <div className="text-left">
+                    <p className="text-xs text-slate-500">Total COGS (Variable)</p>
+                    <p className="text-xl font-bold text-orange-600">-${totalCOGS}</p>
+                </div>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h4 className="font-medium text-slate-800 text-sm mb-3">Cost Composition</h4>
-              <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                      <span className="text-slate-500">Subscription Base</span>
-                      <span className="font-medium">{totalUnitCost > 0 ? ((baseCost / totalUnitCost) * 100).toFixed(0) : 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${totalUnitCost > 0 ? (baseCost / totalUnitCost) * 100 : 0}%` }}></div>
-                  </div>
-                  
-                  <div className="flex justify-between text-xs pt-1">
-                      <span className="text-slate-500">Marketing (FB + Poster)</span>
-                      <span className="font-medium">{totalUnitCost > 0 ? (((fbAdCost + posterCost) / totalUnitCost) * 100).toFixed(0) : 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-orange-500 h-1.5 rounded-full" style={{ width: `${totalUnitCost > 0 ? ((fbAdCost + posterCost) / totalUnitCost) * 100 : 0}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between text-xs pt-1">
-                      <span className="text-slate-500">Gmail Accounts</span>
-                      <span className="font-medium">{totalUnitCost > 0 ? ((gmailCost / totalUnitCost) * 100).toFixed(0) : 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-red-500 h-1.5 rounded-full" style={{ width: `${totalUnitCost > 0 ? (gmailCost / totalUnitCost) * 100 : 0}%` }}></div>
-                  </div>
-              </div>
+          <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+             <TrendingUp className="text-green-500 mb-2" size={24} />
+             <h4 className="font-semibold text-slate-800">Break-Even Point</h4>
+             <p className="text-sm text-slate-500 mt-1">
+               You need to make <span className="font-bold text-slate-900">{breakEvenPoint} sales</span> to cover your total expenses of ${totalOpEx}.
+             </p>
+             {salesVolume >= breakEvenPoint ? (
+               <div className="mt-3 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                 Profitable Zone
+               </div>
+             ) : (
+                <div className="mt-3 px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                 Loss Zone
+               </div>
+             )}
           </div>
         </div>
       </div>

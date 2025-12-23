@@ -8,25 +8,26 @@ export const analyzeBusinessData = async (
   query: string
 ): Promise<string> => {
   try {
-    const dataContext = JSON.stringify(transactions.slice(-50)); // Limit context to last 50 transactions for efficiency
+    const dataContext = JSON.stringify(transactions.slice(-50)); // Limit context to last 50 transactions
     
+    // Note: In a real app we would pass expenses here too, but for now we focus on sales data
+    // or we can mock a summary of expenses if needed, but the prompt should be aware of the business model.
     const prompt = `
       You are an expert business analyst for a digital subscription reseller business (selling ChatGPT accounts).
       
-      The business model includes:
-      1. Base Subscription Cost (costPrice)
-      2. Gmail Account Cost (gmailCost) - Buying email accounts to create subscriptions.
-      3. Marketing Costs (fbAdCost, posterCost) - Facebook ads and poster marketing allocated per sale (CPA).
+      The business model:
+      - Revenue comes from selling subscriptions (Transactions).
+      - Costs are split into:
+        1. COGS (Base Cost per subscription).
+        2. OpEx (Total Expenses for Gmail accounts, Facebook Ads, Posters).
       
-      Here is the recent transaction data in JSON format:
+      Here is the recent SALES transaction data:
       ${dataContext}
       
       User Query: ${query}
       
-      Please analyze the data and provide a helpful, professional, and actionable response. 
-      If the user asks for insights, look for trends in "Net Profit" (Sale Price - All Costs).
-      Identify if marketing costs (FB/Poster) are eating into margins too much.
-      Keep the response concise and formatted with Markdown.
+      Please analyze the data. If the user asks about profit, remind them that Net Profit = (Revenue - COGS) - Total Expenses.
+      Look for trends in sales volume and gross margins.
     `;
 
     const response = await ai.models.generateContent({
@@ -46,8 +47,8 @@ export const forecastSales = async (transactions: Transaction[]): Promise<string
         const dataContext = JSON.stringify(transactions);
         const prompt = `
             Based on the following sales history, predict the trend for the next month.
-            Identify which "PlanType" is most profitable after deducting all costs (gmail, fb ads, posters).
-            Suggest if they should spend more on FB Ads or Posters based on the data provided (if correlations exist).
+            Identify which "PlanType" is selling the most.
+            Suggest if they should increase marketing spend based on sales velocity (more sales usually justifies higher ad spend).
             Data: ${dataContext}
         `;
         
@@ -55,7 +56,7 @@ export const forecastSales = async (transactions: Transaction[]): Promise<string
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
-                thinkingConfig: { thinkingBudget: 1024 } // Use a small thinking budget for better reasoning
+                thinkingConfig: { thinkingBudget: 1024 }
             }
         });
 
