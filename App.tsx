@@ -5,19 +5,19 @@ import { ProfitCalculator } from './components/ProfitCalculator';
 import { AIAnalyst } from './components/AIAnalyst';
 import { Transaction, PlanType, Expense } from './types';
 
-// Initial Dummy Data
+// Initial Dummy Data with BDT values and new Plan Types
 const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: '1', date: '2023-10-24', customerName: 'Alice Johnson', planType: PlanType.PLUS, costPrice: 10, salePrice: 28, currency: 'USD' },
-  { id: '2', date: '2023-10-25', customerName: 'TechCorp Inc', planType: PlanType.TEAM, costPrice: 25, salePrice: 80, currency: 'USD' },
-  { id: '3', date: '2023-10-25', customerName: 'Bob Smith', planType: PlanType.PLUS, costPrice: 10, salePrice: 28, currency: 'USD' },
-  { id: '4', date: '2023-10-26', customerName: 'Charlie Brown', planType: PlanType.API_CREDITS, costPrice: 50, salePrice: 100, currency: 'USD' },
-  { id: '5', date: '2023-10-27', customerName: 'Dave Wilson', planType: PlanType.PLUS, costPrice: 10, salePrice: 26, currency: 'USD' }, 
+  { id: '1', date: '2023-10-24', customerName: 'Alice Johnson', planType: PlanType.PLUS, costPrice: 250, salePrice: 450, currency: 'BDT' },
+  { id: '2', date: '2023-10-25', customerName: 'TechCorp Inc', planType: PlanType.GOOGLE_AI_PRO, costPrice: 600, salePrice: 1000, currency: 'BDT' },
+  { id: '3', date: '2023-10-25', customerName: 'Bob Smith', planType: PlanType.PLUS, costPrice: 250, salePrice: 450, currency: 'BDT' },
+  { id: '4', date: '2023-10-26', customerName: 'Charlie Brown', planType: PlanType.GO, costPrice: 1200, salePrice: 2000, currency: 'BDT' },
+  { id: '5', date: '2023-10-27', customerName: 'Dave Wilson', planType: PlanType.PLUS, costPrice: 250, salePrice: 420, currency: 'BDT' }, 
 ];
 
 const INITIAL_EXPENSES: Expense[] = [
-    { id: 'e1', date: '2023-10-20', category: 'Facebook Ads', amount: 50, description: 'Weekend Campaign' },
-    { id: 'e2', date: '2023-10-22', category: 'Gmail', amount: 20, description: '10 Accounts Batch' },
-    { id: 'e3', date: '2023-10-25', category: 'Poster', amount: 30, description: 'Local flyers' },
+    { id: 'e1', date: '2023-10-20', category: 'Facebook Ads', amount: 1500, description: 'Weekend Campaign' },
+    { id: 'e2', date: '2023-10-22', category: 'Gmail', amount: 500, description: '10 Accounts Batch' },
+    { id: 'e3', date: '2023-10-25', category: 'Poster', amount: 800, description: 'Local flyers' },
 ];
 
 type ViewState = 'dashboard' | 'calculator' | 'transactions' | 'ai';
@@ -28,6 +28,7 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
 
+  // Transaction Handlers
   const addTransaction = (newT: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
       ...newT,
@@ -36,6 +37,15 @@ function App() {
     setTransactions(prev => [...prev, transaction]);
   };
 
+  const updateTransaction = (updated: Transaction) => {
+    setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+  };
+
+  const deleteTransaction = (id: string) => {
+    setTransactions(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Expense Handlers
   const addExpense = (newE: Omit<Expense, 'id'>) => {
     const expense: Expense = {
       ...newE,
@@ -43,6 +53,15 @@ function App() {
     };
     setExpenses(prev => [...prev, expense]);
   }
+
+  const updateExpense = (updated: Expense) => {
+    setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+  };
+
+  const deleteExpense = (id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  };
+
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
     <button
@@ -128,7 +147,11 @@ function App() {
                 transactions={transactions} 
                 expenses={expenses}
                 onAddTransaction={addTransaction}
+                onUpdateTransaction={updateTransaction}
+                onDeleteTransaction={deleteTransaction}
                 onAddExpense={addExpense}
+                onUpdateExpense={updateExpense}
+                onDeleteExpense={deleteExpense}
               />
             )}
             

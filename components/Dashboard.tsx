@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import { TrendingUp, Users, DollarSign, CreditCard, PlusCircle, MinusCircle, Facebook, Mail, Megaphone, Receipt } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, CreditCard, PlusCircle, MinusCircle, Facebook, Mail, Megaphone, Receipt, Pencil, Trash2 } from 'lucide-react';
 import { MetricsCard } from './MetricsCard';
 import { Transaction, PlanType, Expense } from '../types';
 
@@ -11,25 +11,36 @@ interface DashboardProps {
   transactions: Transaction[];
   expenses: Expense[];
   onAddTransaction: (t: Omit<Transaction, 'id'>) => void;
+  onUpdateTransaction: (t: Transaction) => void;
+  onDeleteTransaction: (id: string) => void;
   onAddExpense: (e: Omit<Expense, 'id'>) => void;
+  onUpdateExpense: (e: Expense) => void;
+  onDeleteExpense: (id: string) => void;
 }
 
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, onAddTransaction, onAddExpense }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  transactions, 
+  expenses, 
+  onAddTransaction, 
+  onUpdateTransaction,
+  onDeleteTransaction,
+  onAddExpense,
+  onUpdateExpense,
+  onDeleteExpense
+}) => {
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   
+  // State for editing
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+
   // 1. Calculate Metrics
   const totalRevenue = transactions.reduce((acc, t) => acc + t.salePrice, 0);
-  
-  // COGS = Cost of Goods Sold (Base subscription cost only)
   const totalCOGS = transactions.reduce((acc, t) => acc + t.costPrice, 0);
-  
-  // OpEx = Operating Expenses (Ads, Gmails, Posters)
   const totalOpEx = expenses.reduce((acc, e) => acc + e.amount, 0);
-
-  // Net Profit
   const totalProfit = totalRevenue - totalCOGS - totalOpEx;
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
@@ -41,8 +52,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
     };
   }).filter(d => d.value > 0);
 
-  // Profit Trend (Simplified for daily view - assumes linear distribution of OpEx for simplicity in viz, or just shows Gross Profit daily)
-  // Let's show Daily Revenue vs Daily Gross Profit to keep it simple, as OpEx is often lump sum.
   const dailyMetrics = transactions.reduce((acc: any[], t) => {
     const existing = acc.find(item => item.date === t.date);
     const grossProfit = t.salePrice - t.costPrice;
@@ -57,34 +66,82 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
   }, []).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
 
   // Forms State
-  const [newTrans, setNewTrans] = useState<Omit<Transaction, 'id'>>({
+  const defaultTrans = {
     customerName: '',
     planType: PlanType.PLUS,
-    costPrice: 10,
-    salePrice: 25,
-    currency: 'USD',
+    costPrice: 250,
+    salePrice: 450,
+    currency: 'BDT',
     date: new Date().toISOString().split('T')[0]
-  });
+  };
+  const [transForm, setTransForm] = useState<Omit<Transaction, 'id'>>(defaultTrans);
 
-  const [newExpense, setNewExpense] = useState<Omit<Expense, 'id'>>({
+  const defaultExpense = {
     category: 'Facebook Ads',
     amount: 0,
     description: '',
     date: new Date().toISOString().split('T')[0]
-  });
+  };
+  const [expenseForm, setExpenseForm] = useState<Omit<Expense, 'id'>>(defaultExpense as any);
+
+  // --- Handlers for Sales ---
+
+  const openAddSale = () => {
+    setEditingTransactionId(null);
+    setTransForm(defaultTrans);
+    setIsSaleModalOpen(true);
+  };
+
+  const openEditSale = (t: Transaction) => {
+    setEditingTransactionId(t.id);
+    setTransForm({
+        customerName: t.customerName,
+        planType: t.planType,
+        costPrice: t.costPrice,
+        salePrice: t.salePrice,
+        currency: t.currency,
+        date: t.date
+    });
+    setIsSaleModalOpen(true);
+  };
 
   const handleSaleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddTransaction(newTrans);
+    if (editingTransactionId) {
+        onUpdateTransaction({ ...transForm, id: editingTransactionId });
+    } else {
+        onAddTransaction(transForm);
+    }
     setIsSaleModalOpen(false);
-    setNewTrans(prev => ({ ...prev, customerName: '' }));
+  };
+
+  // --- Handlers for Expenses ---
+
+  const openAddExpense = () => {
+    setEditingExpenseId(null);
+    setExpenseForm(defaultExpense as any);
+    setIsExpenseModalOpen(true);
+  };
+
+  const openEditExpense = (e: Expense) => {
+    setEditingExpenseId(e.id);
+    setExpenseForm({
+        category: e.category,
+        amount: e.amount,
+        description: e.description || '',
+        date: e.date
+    });
+    setIsExpenseModalOpen(true);
   };
 
   const handleExpenseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddExpense(newExpense);
+    if (editingExpenseId) {
+        onUpdateExpense({ ...expenseForm, id: editingExpenseId } as Expense);
+    } else {
+        onAddExpense(expenseForm);
+    }
     setIsExpenseModalOpen(false);
-    setNewExpense(prev => ({ ...prev, amount: 0, description: '' }));
   };
 
   return (
@@ -93,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricsCard 
           title="Net Profit" 
-          value={`$${totalProfit.toFixed(2)}`} 
+          value={`৳${totalProfit.toLocaleString()}`} 
           icon={TrendingUp} 
           color={totalProfit >= 0 ? "green" : "red"} 
           trend="Revenue - (COGS + Exp)" 
@@ -101,13 +158,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
         />
         <MetricsCard 
           title="Total Revenue" 
-          value={`$${totalRevenue.toFixed(2)}`} 
+          value={`৳${totalRevenue.toLocaleString()}`} 
           icon={DollarSign} 
           color="blue" 
         />
         <MetricsCard 
           title="Total Expenses" 
-          value={`$${totalOpEx.toFixed(2)}`} 
+          value={`৳${totalOpEx.toLocaleString()}`} 
           icon={Receipt} 
           color="orange" 
         />
@@ -134,8 +191,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                   cursor={{fill: '#f1f5f9'}}
                   contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
                 />
-                <Bar dataKey="grossProfit" fill="#10B981" radius={[4, 4, 0, 0]} name="Gross Profit" />
-                <Bar dataKey="revenue" fill="#4F46E5" radius={[4, 4, 0, 0]} name="Revenue" hide />
+                <Bar dataKey="grossProfit" fill="#10B981" radius={[4, 4, 0, 0]} name="Gross Profit (৳)" />
+                <Bar dataKey="revenue" fill="#4F46E5" radius={[4, 4, 0, 0]} name="Revenue (৳)" hide />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -174,7 +231,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-red-50/30">
             <h3 className="text-md font-semibold text-slate-800">Operating Expenses</h3>
             <button 
-              onClick={() => setIsExpenseModalOpen(true)}
+              onClick={openAddExpense}
               className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
             >
               <PlusCircle size={16} />
@@ -187,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                 <table className="w-full text-left text-sm text-slate-600">
                     <tbody className="divide-y divide-slate-100">
                         {expenses.slice().reverse().map(e => (
-                            <tr key={e.id} className="hover:bg-slate-50">
+                            <tr key={e.id} className="hover:bg-slate-50 group">
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2 font-medium text-slate-700">
                                         {e.category === 'Facebook Ads' && <Facebook size={14} className="text-blue-600"/>}
@@ -196,9 +253,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                                         {e.category === 'Other' && <Receipt size={14} className="text-slate-400"/>}
                                         {e.category}
                                     </div>
-                                    <div className="text-xs text-slate-400">{e.date}</div>
+                                    <div className="text-xs text-slate-400">{e.date} {e.description ? `- ${e.description}` : ''}</div>
                                 </td>
-                                <td className="px-4 py-3 text-right font-medium text-red-600">-${e.amount}</td>
+                                <td className="px-4 py-3 text-right">
+                                    <div className="font-medium text-red-600">-৳{e.amount}</div>
+                                    <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => openEditExpense(e)} className="text-slate-400 hover:text-blue-600"><Pencil size={12}/></button>
+                                        <button onClick={() => onDeleteExpense(e.id)} className="text-slate-400 hover:text-red-600"><Trash2 size={12}/></button>
+                                    </div>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -212,7 +275,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
             <h3 className="text-lg font-semibold text-slate-800">Recent Sales</h3>
             <button 
-                onClick={() => setIsSaleModalOpen(true)}
+                onClick={openAddSale}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
                 <PlusCircle size={18} />
@@ -228,14 +291,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                     <th className="px-6 py-3">Plan</th>
                     <th className="px-6 py-3 text-right">Cost</th>
                     <th className="px-6 py-3 text-right">Price</th>
-                    <th className="px-6 py-3 text-right">Gross Profit</th>
+                    <th className="px-6 py-3 text-right">Profit</th>
+                    <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                 {transactions.slice().reverse().slice(0, 5).map((t) => {
                     const gross = t.salePrice - t.costPrice;
                     return (
-                    <tr key={t.id} className="hover:bg-slate-50">
+                    <tr key={t.id} className="hover:bg-slate-50 group">
                         <td className="px-6 py-3">{t.date}</td>
                         <td className="px-6 py-3 font-medium text-slate-900">{t.customerName}</td>
                         <td className="px-6 py-3">
@@ -243,10 +307,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                             {t.planType}
                         </span>
                         </td>
-                        <td className="px-6 py-3 text-right text-slate-500">${t.costPrice}</td>
-                        <td className="px-6 py-3 text-right text-slate-900">${t.salePrice}</td>
+                        <td className="px-6 py-3 text-right text-slate-500">৳{t.costPrice}</td>
+                        <td className="px-6 py-3 text-right text-slate-900">৳{t.salePrice}</td>
                         <td className="px-6 py-3 text-right font-bold text-green-600">
-                        +${gross.toFixed(2)}
+                        +৳{gross.toFixed(2)}
+                        </td>
+                         <td className="px-6 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => openEditSale(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"><Pencil size={14}/></button>
+                                <button onClick={() => onDeleteTransaction(t.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14}/></button>
+                            </div>
                         </td>
                     </tr>
                     );
@@ -260,11 +330,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
         </div>
       </div>
 
-      {/* Add Sale Modal */}
+      {/* Sale Modal */}
       {isSaleModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-            <h2 className="text-xl font-bold mb-4">Record New Sale</h2>
+            <h2 className="text-xl font-bold mb-4">{editingTransactionId ? 'Edit Sale' : 'Record New Sale'}</h2>
             <form onSubmit={handleSaleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -272,8 +342,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                   <input 
                     required
                     className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={newTrans.customerName}
-                    onChange={e => setNewTrans({...newTrans, customerName: e.target.value})}
+                    value={transForm.customerName}
+                    onChange={e => setTransForm({...transForm, customerName: e.target.value})}
                   />
                 </div>
                 <div>
@@ -282,8 +352,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                     type="date"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={newTrans.date}
-                    onChange={e => setNewTrans({...newTrans, date: e.target.value})}
+                    value={transForm.date}
+                    onChange={e => setTransForm({...transForm, date: e.target.value})}
                   />
                 </div>
               </div>
@@ -292,8 +362,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                 <label className="block text-sm font-medium mb-1">Plan Type</label>
                 <select 
                     className="w-full border border-slate-300 rounded-lg p-2"
-                    value={newTrans.planType}
-                    onChange={e => setNewTrans({...newTrans, planType: e.target.value as PlanType})}
+                    value={transForm.planType}
+                    onChange={e => setTransForm({...transForm, planType: e.target.value as PlanType})}
                 >
                     {Object.values(PlanType).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -301,48 +371,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Base Cost ($)</label>
+                  <label className="block text-sm font-medium mb-1">Base Cost (৳)</label>
                   <input 
                     type="number"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2"
-                    value={newTrans.costPrice}
-                    onChange={e => setNewTrans({...newTrans, costPrice: Number(e.target.value)})}
+                    value={transForm.costPrice}
+                    onChange={e => setTransForm({...transForm, costPrice: Number(e.target.value)})}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Sale Price ($)</label>
+                  <label className="block text-sm font-medium mb-1">Sale Price (৳)</label>
                   <input 
                     type="number"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2 font-semibold"
-                    value={newTrans.salePrice}
-                    onChange={e => setNewTrans({...newTrans, salePrice: Number(e.target.value)})}
+                    value={transForm.salePrice}
+                    onChange={e => setTransForm({...transForm, salePrice: Number(e.target.value)})}
                   />
                 </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
                 <button type="button" onClick={() => setIsSaleModalOpen(false)} className="px-4 py-2 text-slate-600">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Save Sale</button>
+                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    {editingTransactionId ? 'Update Sale' : 'Save Sale'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Add Expense Modal */}
+      {/* Expense Modal */}
       {isExpenseModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <h2 className="text-xl font-bold mb-4 text-red-700">Add Expense</h2>
+            <h2 className="text-xl font-bold mb-4 text-red-700">{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</h2>
             <form onSubmit={handleExpenseSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Category</label>
                 <select 
                     className="w-full border border-slate-300 rounded-lg p-2"
-                    value={newExpense.category}
-                    onChange={e => setNewExpense({...newExpense, category: e.target.value as any})}
+                    value={expenseForm.category}
+                    onChange={e => setExpenseForm({...expenseForm, category: e.target.value as any})}
                 >
                     <option value="Facebook Ads">Facebook Ads</option>
                     <option value="Gmail">Gmail Accounts (Bulk)</option>
@@ -352,13 +424,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
               </div>
               
               <div>
-                 <label className="block text-sm font-medium mb-1">Amount ($)</label>
+                 <label className="block text-sm font-medium mb-1">Amount (৳)</label>
                  <input 
                     type="number"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-red-500"
-                    value={newExpense.amount}
-                    onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value)})}
+                    value={expenseForm.amount}
+                    onChange={e => setExpenseForm({...expenseForm, amount: Number(e.target.value)})}
                     placeholder="0.00"
                  />
               </div>
@@ -369,14 +441,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, expenses, on
                     type="date"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2"
-                    value={newExpense.date}
-                    onChange={e => setNewExpense({...newExpense, date: e.target.value})}
+                    value={expenseForm.date}
+                    onChange={e => setExpenseForm({...expenseForm, date: e.target.value})}
+                 />
+              </div>
+              
+               <div>
+                 <label className="block text-sm font-medium mb-1">Description (Optional)</label>
+                 <input 
+                    type="text"
+                    className="w-full border border-slate-300 rounded-lg p-2"
+                    value={expenseForm.description}
+                    onChange={e => setExpenseForm({...expenseForm, description: e.target.value})}
                  />
               </div>
 
               <div className="flex justify-end gap-3 mt-4 pt-4 border-t">
                 <button type="button" onClick={() => setIsExpenseModalOpen(false)} className="px-4 py-2 text-slate-600">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Add Expense</button>
+                <button type="submit" className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    {editingExpenseId ? 'Update Expense' : 'Add Expense'}
+                </button>
               </div>
             </form>
           </div>

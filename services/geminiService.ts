@@ -20,6 +20,7 @@ export const analyzeBusinessData = async (
       - Costs are split into:
         1. COGS (Base Cost per subscription).
         2. OpEx (Total Expenses for Gmail accounts, Facebook Ads, Posters).
+      - The currency is **Bangladeshi Taka (BDT)**. All numerical values are in BDT.
       
       Here is the recent SALES transaction data:
       ${dataContext}
@@ -47,6 +48,7 @@ export const forecastSales = async (transactions: Transaction[]): Promise<string
         const dataContext = JSON.stringify(transactions);
         const prompt = `
             Based on the following sales history, predict the trend for the next month.
+            The currency is **Bangladeshi Taka (BDT)**.
             Identify which "PlanType" is selling the most.
             Suggest if they should increase marketing spend based on sales velocity (more sales usually justifies higher ad spend).
             Data: ${dataContext}

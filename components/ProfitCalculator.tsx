@@ -3,13 +3,13 @@ import { Calculator, DollarSign, Target, Mail, Megaphone, Users, TrendingUp } fr
 
 export const ProfitCalculator: React.FC = () => {
   // Unit Economics
-  const [salePrice, setSalePrice] = useState<number>(25);
-  const [baseCost, setBaseCost] = useState<number>(10); // Cost per subscription
+  const [salePrice, setSalePrice] = useState<number>(450);
+  const [baseCost, setBaseCost] = useState<number>(250); // Cost per subscription
 
   // Total Operational Costs (OpEx)
-  const [totalGmailCost, setTotalGmailCost] = useState<number>(50);
-  const [totalFbAdCost, setTotalFbAdCost] = useState<number>(100);
-  const [totalPosterCost, setTotalPosterCost] = useState<number>(30);
+  const [totalGmailCost, setTotalGmailCost] = useState<number>(1200);
+  const [totalFbAdCost, setTotalFbAdCost] = useState<number>(2500);
+  const [totalPosterCost, setTotalPosterCost] = useState<number>(800);
   
   // Volume Scenario
   const [salesVolume, setSalesVolume] = useState<number>(20);
@@ -60,7 +60,7 @@ export const ProfitCalculator: React.FC = () => {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Sale Price ($)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Sale Price (৳)</label>
                 <input
                   type="number"
                   value={salePrice}
@@ -69,7 +69,7 @@ export const ProfitCalculator: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Base Cost ($)</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Base Cost (৳)</label>
                 <input
                   type="number"
                   value={baseCost}
@@ -79,7 +79,7 @@ export const ProfitCalculator: React.FC = () => {
               </div>
             </div>
             <p className="text-xs text-blue-600 font-medium">
-              You make ${salePrice - baseCost} per sale before marketing expenses.
+              You make ৳{salePrice - baseCost} per sale before marketing expenses.
             </p>
           </div>
 
@@ -92,7 +92,7 @@ export const ProfitCalculator: React.FC = () => {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Mail size={12} /> Total Gmail Accounts Cost
+                  <Mail size={12} /> Total Gmail Accounts Cost (৳)
                 </label>
                 <input
                   type="number"
@@ -103,7 +103,7 @@ export const ProfitCalculator: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Megaphone size={12} /> Total Facebook Ads Budget
+                  <Megaphone size={12} /> Total Facebook Ads Budget (৳)
                 </label>
                 <input
                   type="number"
@@ -114,7 +114,7 @@ export const ProfitCalculator: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
-                  <Target size={12} /> Total Poster Marketing Cost
+                  <Target size={12} /> Total Poster Marketing Cost (৳)
                 </label>
                 <input
                   type="number"
@@ -160,7 +160,7 @@ export const ProfitCalculator: React.FC = () => {
                 {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)}
               </p>
               <p className="text-xs text-slate-500 mt-2">
-                 at {salesVolume} sales
+                 BDT (৳) at {salesVolume} sales
               </p>
             </div>
 
@@ -169,15 +169,15 @@ export const ProfitCalculator: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
                 <div className="text-left">
                     <p className="text-xs text-slate-500">Total Revenue</p>
-                    <p className="text-xl font-bold text-slate-800">${totalRevenue}</p>
+                    <p className="text-xl font-bold text-slate-800">৳{totalRevenue}</p>
                 </div>
                  <div className="text-left">
                     <p className="text-xs text-slate-500">Total Expenses (Fixed)</p>
-                    <p className="text-xl font-bold text-red-600">-${totalOpEx}</p>
+                    <p className="text-xl font-bold text-red-600">-৳{totalOpEx}</p>
                 </div>
                  <div className="text-left">
                     <p className="text-xs text-slate-500">Total COGS (Variable)</p>
-                    <p className="text-xl font-bold text-orange-600">-${totalCOGS}</p>
+                    <p className="text-xl font-bold text-orange-600">-৳{totalCOGS}</p>
                 </div>
             </div>
           </div>
@@ -186,7 +186,7 @@ export const ProfitCalculator: React.FC = () => {
              <TrendingUp className="text-green-500 mb-2" size={24} />
              <h4 className="font-semibold text-slate-800">Break-Even Point</h4>
              <p className="text-sm text-slate-500 mt-1">
-               You need to make <span className="font-bold text-slate-900">{breakEvenPoint} sales</span> to cover your total expenses of ${totalOpEx}.
+               You need to make <span className="font-bold text-slate-900">{breakEvenPoint} sales</span> to cover your total expenses of ৳{totalOpEx}.
              </p>
              {salesVolume >= breakEvenPoint ? (
                <div className="mt-3 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">

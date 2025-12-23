@@ -1,8 +1,7 @@
 export enum PlanType {
   PLUS = 'Plus',
-  TEAM = 'Team',
-  ENTERPRISE = 'Enterprise',
-  API_CREDITS = 'API Credits'
+  GO = 'Go',
+  GOOGLE_AI_PRO = 'Google AI Pro'
 }
 
 export interface Transaction {
