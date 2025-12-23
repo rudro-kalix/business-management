@@ -28,13 +28,23 @@ function App() {
 
   // Initialize state from LocalStorage or fallback to initial data
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('gpt_reseller_transactions');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    try {
+      const saved = localStorage.getItem('gpt_reseller_transactions');
+      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    } catch (e) {
+      console.error("Failed to parse transactions from local storage", e);
+      return INITIAL_TRANSACTIONS;
+    }
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem('gpt_reseller_expenses');
-    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    try {
+      const saved = localStorage.getItem('gpt_reseller_expenses');
+      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    } catch (e) {
+      console.error("Failed to parse expenses from local storage", e);
+      return INITIAL_EXPENSES;
+    }
   });
 
   // Save to LocalStorage whenever transactions change
