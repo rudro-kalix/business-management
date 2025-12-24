@@ -7,12 +7,13 @@ export enum PlanType {
 export interface Transaction {
   id: string;
   date: string;
-  customerName: string;
+  customerName?: string; // Optional field
   planType: PlanType;
   costPrice: number; // Base subscription cost (COGS)
   salePrice: number; // Price sold to customer
   currency: string;
   notes?: string;
+  isHistorical?: boolean; // If true, excluded from charts but included in totals
 }
 
 export interface Expense {

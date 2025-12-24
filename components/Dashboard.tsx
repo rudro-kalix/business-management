@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
-import { TrendingUp, Users, DollarSign, CreditCard, PlusCircle, MinusCircle, Facebook, Mail, Megaphone, Receipt, Pencil, Trash2 } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, CreditCard, PlusCircle, MinusCircle, Facebook, Mail, Megaphone, Receipt, Pencil, Trash2, History } from 'lucide-react';
 import { MetricsCard } from './MetricsCard';
 import { Transaction, PlanType, Expense } from '../types';
 
@@ -37,22 +37,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
-  // 1. Calculate Metrics
+  // 1. Calculate Metrics (INCLUDES Historical Data)
   const totalRevenue = transactions.reduce((acc, t) => acc + t.salePrice, 0);
   const totalCOGS = transactions.reduce((acc, t) => acc + t.costPrice, 0);
   const totalOpEx = expenses.reduce((acc, e) => acc + e.amount, 0);
   const totalProfit = totalRevenue - totalCOGS - totalOpEx;
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-  // 2. Prepare Chart Data
+  // 2. Prepare Chart Data (EXCLUDES Historical Data)
+  // We filter out transactions where isHistorical is true for visual trends
+  const activeTransactions = transactions.filter(t => !t.isHistorical);
+
   const salesByPlan = Object.values(PlanType).map(type => {
     return {
       name: type,
-      value: transactions.filter(t => t.planType === type).length
+      value: activeTransactions.filter(t => t.planType === type).length
     };
   }).filter(d => d.value > 0);
 
-  const dailyMetrics = transactions.reduce((acc: any[], t) => {
+  const dailyMetrics = activeTransactions.reduce((acc: any[], t) => {
     const existing = acc.find(item => item.date === t.date);
     const grossProfit = t.salePrice - t.costPrice;
     
@@ -66,13 +69,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, []).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(-7);
 
   // Forms State
-  const defaultTrans = {
+  const defaultTrans: Omit<Transaction, 'id'> = {
     customerName: '',
     planType: PlanType.PLUS,
     costPrice: 250,
     salePrice: 450,
     currency: 'BDT',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    isHistorical: false
   };
   const [transForm, setTransForm] = useState<Omit<Transaction, 'id'>>(defaultTrans);
 
@@ -95,12 +99,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const openEditSale = (t: Transaction) => {
     setEditingTransactionId(t.id);
     setTransForm({
-        customerName: t.customerName,
+        customerName: t.customerName || '',
         planType: t.planType,
         costPrice: t.costPrice,
         salePrice: t.salePrice,
         currency: t.currency,
-        date: t.date
+        date: t.date,
+        isHistorical: t.isHistorical || false
     });
     setIsSaleModalOpen(true);
   };
@@ -153,7 +158,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           value={`৳${totalProfit.toLocaleString()}`} 
           icon={TrendingUp} 
           color={totalProfit >= 0 ? "green" : "red"} 
-          trend="Revenue - (COGS + Exp)" 
+          trend="Total All-Time" 
           trendUp={totalProfit >= 0} 
         />
         <MetricsCard 
@@ -169,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           color="orange" 
         />
          <MetricsCard 
-          title="Active Sales" 
+          title="Total Sales" 
           value={transactions.length.toString()} 
           icon={Users} 
           color="purple" 
@@ -180,7 +185,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gross Profit Trend */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Daily Gross Profit (Before OpEx)</h3>
+          <div className="flex justify-between items-start mb-4">
+             <div>
+                <h3 className="text-lg font-semibold text-slate-800">Daily Gross Profit</h3>
+                <p className="text-xs text-slate-400">Excluding historical data</p>
+             </div>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyMetrics}>
@@ -200,7 +210,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Sales by Plan */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Sales by Plan Type</h3>
+          <div className="flex justify-between items-start mb-4">
+             <div>
+                <h3 className="text-lg font-semibold text-slate-800">Sales by Plan Type</h3>
+                <p className="text-xs text-slate-400">Current active sales only</p>
+             </div>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -273,7 +288,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Transactions List */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-slate-800">Recent Sales</h3>
+            <h3 className="text-lg font-semibold text-slate-800">Sales History</h3>
             <button 
                 onClick={openAddSale}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -282,9 +297,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Add Sale
             </button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[400px]">
             <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500 sticky top-0">
                 <tr>
                     <th className="px-6 py-3">Date</th>
                     <th className="px-6 py-3">Customer</th>
@@ -296,12 +311,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                {transactions.slice().reverse().slice(0, 5).map((t) => {
+                {transactions.slice().reverse().map((t) => {
                     const gross = t.salePrice - t.costPrice;
                     return (
-                    <tr key={t.id} className="hover:bg-slate-50 group">
-                        <td className="px-6 py-3">{t.date}</td>
-                        <td className="px-6 py-3 font-medium text-slate-900">{t.customerName}</td>
+                    <tr key={t.id} className={`hover:bg-slate-50 group ${t.isHistorical ? 'bg-slate-50/50' : ''}`}>
+                        <td className="px-6 py-3">
+                            <div className="flex items-center gap-2">
+                                {t.isHistorical && <History size={14} className="text-slate-400" title="Historical Data (Excluded from graphs)" />}
+                                {t.date}
+                            </div>
+                        </td>
+                        <td className="px-6 py-3 font-medium text-slate-900">{t.customerName || <span className="text-slate-400 text-xs italic">No Name</span>}</td>
                         <td className="px-6 py-3">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             {t.planType}
@@ -336,14 +356,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold mb-4">{editingTransactionId ? 'Edit Sale' : 'Record New Sale'}</h2>
             <form onSubmit={handleSaleSubmit} className="space-y-4">
+              
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                 <input 
+                    type="checkbox"
+                    id="isHistorical"
+                    className="w-4 h-4 text-indigo-600 rounded"
+                    checked={transForm.isHistorical || false}
+                    onChange={e => setTransForm({...transForm, isHistorical: e.target.checked})}
+                 />
+                 <label htmlFor="isHistorical" className="text-sm text-slate-700 select-none cursor-pointer flex flex-col">
+                    <span className="font-medium">Previous/Historical Sale</span>
+                    <span className="text-xs text-slate-500">Calculate in Total Profit, but hide from daily graphs.</span>
+                 </label>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Customer</label>
+                  <label className="block text-sm font-medium mb-1">Customer <span className="text-slate-400 font-normal text-xs">(Optional)</span></label>
                   <input 
-                    required
                     className="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    value={transForm.customerName}
+                    value={transForm.customerName || ''}
                     onChange={e => setTransForm({...transForm, customerName: e.target.value})}
+                    placeholder="Guest"
                   />
                 </div>
                 <div>
