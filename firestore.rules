@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // CAUTION: This rule allows anyone with your project config to read and write data.
+    // This is necessary because the app currently does not use Firebase Authentication.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

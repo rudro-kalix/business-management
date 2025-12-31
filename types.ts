@@ -11,6 +11,7 @@ export interface Transaction {
   planType: PlanType;
   costPrice: number; // Base subscription cost (COGS)
   salePrice: number; // Price sold to customer
+  quantity?: number; // Number of items sold in this transaction
   currency: string;
   notes?: string;
   isHistorical?: boolean; // If true, excluded from charts but included in totals

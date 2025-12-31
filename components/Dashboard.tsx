@@ -43,6 +43,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalOpEx = expenses.reduce((acc, e) => acc + e.amount, 0);
   const totalProfit = totalRevenue - totalCOGS - totalOpEx;
   const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+  
+  // Count total sales by summing quantities
+  const totalSalesCount = transactions.reduce((acc, t) => acc + (t.quantity || 1), 0);
 
   // 2. Prepare Chart Data (EXCLUDES Historical Data)
   // We filter out transactions where isHistorical is true for visual trends
@@ -51,7 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const salesByPlan = Object.values(PlanType).map(type => {
     return {
       name: type,
-      value: activeTransactions.filter(t => t.planType === type).length
+      value: activeTransactions.filter(t => t.planType === type).reduce((acc, t) => acc + (t.quantity || 1), 0)
     };
   }).filter(d => d.value > 0);
 
@@ -76,7 +79,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     salePrice: 450,
     currency: 'BDT',
     date: new Date().toISOString().split('T')[0],
-    isHistorical: false
+    isHistorical: false,
+    quantity: 1
   };
   const [transForm, setTransForm] = useState<Omit<Transaction, 'id'>>(defaultTrans);
 
@@ -105,7 +109,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         salePrice: t.salePrice,
         currency: t.currency,
         date: t.date,
-        isHistorical: t.isHistorical || false
+        isHistorical: t.isHistorical || false,
+        quantity: t.quantity || 1
     });
     setIsSaleModalOpen(true);
   };
@@ -118,6 +123,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onAddTransaction(transForm);
     }
     setIsSaleModalOpen(false);
+  };
+
+  const updateQuantity = (newQty: number) => {
+      const oldQty = transForm.quantity || 1;
+      const unitCost = transForm.costPrice / oldQty;
+      const unitPrice = transForm.salePrice / oldQty;
+      
+      setTransForm({
+          ...transForm,
+          quantity: newQty,
+          costPrice: unitCost * newQty,
+          salePrice: unitPrice * newQty
+      });
+  };
+
+  const handleUnitCostChange = (val: number) => {
+      const qty = transForm.quantity || 1;
+      setTransForm({
+          ...transForm,
+          costPrice: val * qty
+      });
+  };
+
+  const handleUnitSalePriceChange = (val: number) => {
+      const qty = transForm.quantity || 1;
+      setTransForm({
+          ...transForm,
+          salePrice: val * qty
+      });
   };
 
   // --- Handlers for Expenses ---
@@ -175,7 +209,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
          <MetricsCard 
           title="Total Sales" 
-          value={transactions.length.toString()} 
+          value={totalSalesCount.toString()} 
           icon={Users} 
           color="purple" 
         />
@@ -313,18 +347,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <tbody className="divide-y divide-slate-100">
                 {transactions.slice().reverse().map((t) => {
                     const gross = t.salePrice - t.costPrice;
+                    const qty = t.quantity || 1;
                     return (
                     <tr key={t.id} className={`hover:bg-slate-50 group ${t.isHistorical ? 'bg-slate-50/50' : ''}`}>
                         <td className="px-6 py-3">
                             <div className="flex items-center gap-2">
-                                {t.isHistorical && <History size={14} className="text-slate-400" title="Historical Data (Excluded from graphs)" />}
+                                {t.isHistorical && (
+                                    <span title="Historical Data (Excluded from graphs)">
+                                        <History size={14} className="text-slate-400" />
+                                    </span>
+                                )}
                                 {t.date}
                             </div>
                         </td>
                         <td className="px-6 py-3 font-medium text-slate-900">{t.customerName || <span className="text-slate-400 text-xs italic">No Name</span>}</td>
                         <td className="px-6 py-3">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {t.planType}
+                            {t.planType} {qty > 1 && <span className="ml-1 text-[10px] bg-blue-200 text-blue-800 px-1 rounded-sm">x{qty}</span>}
                         </span>
                         </td>
                         <td className="px-6 py-3 text-right text-slate-500">৳{t.costPrice}</td>
@@ -404,26 +443,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </select>
               </div>
 
+              {/* Quantity Section */}
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-500 mb-2 uppercase">Quantity</label>
+                  <div className="flex items-center gap-2 mb-3">
+                      <input 
+                          type="number"
+                          min="1"
+                          required
+                          className="w-20 border border-slate-300 rounded-lg p-2 text-center font-bold text-indigo-700"
+                          value={transForm.quantity || 1}
+                          onChange={e => updateQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                          {[2, 3, 4, 5, 6].map(num => (
+                              <button
+                                  key={num}
+                                  type="button"
+                                  onClick={() => updateQuantity(num)}
+                                  className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${
+                                      (transForm.quantity === num) 
+                                      ? 'bg-indigo-600 text-white' 
+                                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                                  }`}
+                              >
+                                  {num}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Base Cost (৳)</label>
+                  <label className="block text-sm font-medium mb-1">Unit Cost (৳)</label>
                   <input 
                     type="number"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2"
-                    value={transForm.costPrice}
-                    onChange={e => setTransForm({...transForm, costPrice: Number(e.target.value)})}
+                    value={(transForm.costPrice / (transForm.quantity || 1)).toFixed(2).replace(/[.,]00$/, "")}
+                    onChange={e => handleUnitCostChange(Number(e.target.value))}
                   />
+                  <div className="text-xs text-slate-400 mt-1 text-right">Total: ৳{transForm.costPrice}</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Sale Price (৳)</label>
+                  <label className="block text-sm font-medium mb-1">Unit Sale Price (৳)</label>
                   <input 
                     type="number"
                     required
                     className="w-full border border-slate-300 rounded-lg p-2 font-semibold"
-                    value={transForm.salePrice}
-                    onChange={e => setTransForm({...transForm, salePrice: Number(e.target.value)})}
+                    value={(transForm.salePrice / (transForm.quantity || 1)).toFixed(2).replace(/[.,]00$/, "")}
+                    onChange={e => handleUnitSalePriceChange(Number(e.target.value))}
                   />
+                  <div className="text-xs text-slate-400 mt-1 text-right">Total: ৳{transForm.salePrice}</div>
                 </div>
               </div>
 
