@@ -12,10 +12,20 @@ import {
   Firestore,
   writeBatch
 } from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged, 
+  Auth,
+  User 
+} from 'firebase/auth';
 import { Transaction, Expense } from '../types';
 
 let app: FirebaseApp | undefined;
 let db: Firestore | undefined;
+let auth: Auth | undefined;
 
 // Initialize Firebase with config provided by user at runtime
 export const initFirebase = (config: any) => {
@@ -24,6 +34,7 @@ export const initFirebase = (config: any) => {
     if (!app) {
         app = initializeApp(config);
         db = getFirestore(app);
+        auth = getAuth(app);
         console.log("Firebase initialized successfully");
         return true;
     }
@@ -35,6 +46,29 @@ export const initFirebase = (config: any) => {
 };
 
 export const isFirebaseInitialized = () => !!db;
+
+// --- Auth ---
+
+export const loginWithGoogle = async () => {
+  if (!auth) throw new Error("Auth not initialized");
+  const provider = new GoogleAuthProvider();
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    console.error("Login failed", error);
+    throw error;
+  }
+};
+
+export const logoutUser = async () => {
+    if(!auth) return;
+    await signOut(auth);
+};
+
+export const subscribeToAuth = (callback: (user: User | null) => void) => {
+    if (!auth) return () => {};
+    return onAuthStateChanged(auth, callback);
+};
 
 // --- Transactions ---
 
@@ -52,7 +86,7 @@ export const subscribeToTransactions = (callback: (data: Transaction[]) => void)
   }, (error) => {
     console.error("Transaction subscription error:", error);
     if (error.code === 'permission-denied') {
-        alert("🔥 Firestore Error: Permission Denied\n\nPlease go to Firebase Console > Firestore Database > Rules and change:\n\nallow read, write: if false;\n\nTO\n\nallow read, write: if true;");
+        alert("🔒 Access Denied\n\nYou are not authorized to view this data. Please ensure you are logged in and your Firestore rules allow access.");
     }
   });
 };
@@ -91,7 +125,6 @@ export const subscribeToExpenses = (callback: (data: Expense[]) => void) => {
     callback(expenses);
   }, (error) => {
     console.error("Expense subscription error:", error);
-    // Alert handled by transaction subscription usually, but good to have here too just in case
     if (error.code === 'permission-denied') {
          console.warn("Permission denied for expenses.");
     }

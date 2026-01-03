@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Calculator, Receipt, Bot, Menu, Settings, Database, UploadCloud } from 'lucide-react';
+import { LayoutDashboard, Calculator, Menu, Settings, Database, UploadCloud, LogIn, LogOut, ShieldCheck, User } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { ProfitCalculator } from './components/ProfitCalculator';
-import { AIAnalyst } from './components/AIAnalyst';
 import { Transaction, PlanType, Expense } from './types';
 import { 
     initFirebase, 
@@ -15,8 +14,21 @@ import {
     addExpenseToDb,
     updateExpenseInDb,
     deleteExpenseFromDb,
-    migrateDataToFirebase
+    migrateDataToFirebase,
+    loginWithGoogle,
+    logoutUser,
+    subscribeToAuth
 } from './services/firebase';
+
+// Default config placeholder - User must enter their own in Settings
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
 
 // Initial Dummy Data
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -28,7 +40,7 @@ const INITIAL_EXPENSES: Expense[] = [
     { id: 'e1', date: '2023-10-20', category: 'Facebook Ads', amount: 1500, description: 'Weekend Campaign' },
 ];
 
-type ViewState = 'dashboard' | 'calculator' | 'transactions' | 'ai' | 'settings';
+type ViewState = 'dashboard' | 'calculator' | 'transactions' | 'settings';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -38,26 +50,31 @@ function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   
-  // Database State
+  // Database & Auth State
   const [isConnected, setIsConnected] = useState(false);
-  const [dbConfig, setDbConfig] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [dbConfig, setDbConfig] = useState(JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2));
 
-  // 1. Initial Load: Check for Firebase Config
+  // 1. Initial Load: Initialize Firebase with Default or Saved Config
   useEffect(() => {
+    let configToUse = DEFAULT_FIREBASE_CONFIG;
     const savedConfig = localStorage.getItem('gpt_reseller_firebase_config');
+    
     if (savedConfig) {
         try {
-            const config = JSON.parse(savedConfig);
+            configToUse = JSON.parse(savedConfig);
             setDbConfig(savedConfig);
-            if (initFirebase(config)) {
-                setIsConnected(true);
-            }
         } catch (e) {
-            console.error("Invalid config saved");
+            console.error("Invalid config saved, using default");
         }
     }
 
-    // Load local data as fallback or for migration
+    // Only attempt initialization if config looks valid (has apiKey)
+    if (configToUse.apiKey && initFirebase(configToUse)) {
+        setIsConnected(true);
+    }
+
+    // Load local data as fallback (will be overwritten if DB subscription kicks in)
     if (!isFirebaseInitialized()) {
         const localTrans = localStorage.getItem('gpt_reseller_transactions');
         const localExp = localStorage.getItem('gpt_reseller_expenses');
@@ -66,9 +83,25 @@ function App() {
     }
   }, []);
 
-  // 2. Subscribe to Firebase Data if Connected
+  // 2. Subscribe to Auth State
   useEffect(() => {
     if (isConnected) {
+        const unsub = subscribeToAuth((user) => {
+            setCurrentUser(user);
+            if (!user) {
+                // Clear sensitive data on logout
+                if (isFirebaseInitialized()) {
+                   // Optional: Clear data or keep showing empty state until login
+                }
+            }
+        });
+        return () => unsub();
+    }
+  }, [isConnected]);
+
+  // 3. Subscribe to Firebase Data (Only if Connected AND Logged In)
+  useEffect(() => {
+    if (isConnected && currentUser) {
         const unsubTrans = subscribeToTransactions((data) => {
             setTransactions(data);
         });
@@ -80,10 +113,17 @@ function App() {
             unsubTrans();
             unsubExp();
         };
+    } else if (isConnected && !currentUser) {
+        // If connected but not logged in, we shouldn't show stale local data if we want to be "secure", 
+        // but for UX we might show empty or a prompt.
+        // For now, let's keep the local data visible only if we are in "Local Mode" (not connected).
+        // Since isConnected is true here, we are in "Cloud Mode" but logged out.
+        setTransactions([]);
+        setExpenses([]);
     }
-  }, [isConnected]);
+  }, [isConnected, currentUser]);
 
-  // 3. Sync to LocalStorage (Only if NOT connected to DB, as backup)
+  // 4. Sync to LocalStorage (Only if NOT connected to DB, as backup)
   useEffect(() => {
     if (!isConnected) {
         localStorage.setItem('gpt_reseller_transactions', JSON.stringify(transactions));
@@ -101,6 +141,7 @@ function App() {
 
   const addTransaction = async (newT: Omit<Transaction, 'id'>) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to add data."); return; }
         await addTransactionToDb(newT);
     } else {
         const transaction: Transaction = { ...newT, id: Math.random().toString(36).substr(2, 9) };
@@ -110,6 +151,7 @@ function App() {
 
   const updateTransaction = async (updated: Transaction) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to update data."); return; }
         await updateTransactionInDb(updated);
     } else {
         setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
@@ -118,6 +160,7 @@ function App() {
 
   const deleteTransaction = async (id: string) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to delete data."); return; }
         await deleteTransactionFromDb(id);
     } else {
         setTransactions(prev => prev.filter(t => t.id !== id));
@@ -126,6 +169,7 @@ function App() {
 
   const addExpense = async (newE: Omit<Expense, 'id'>) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to add expenses."); return; }
         await addExpenseToDb(newE);
     } else {
         const expense: Expense = { ...newE, id: Math.random().toString(36).substr(2, 9) };
@@ -135,6 +179,7 @@ function App() {
 
   const updateExpense = async (updated: Expense) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to update expenses."); return; }
         await updateExpenseInDb(updated);
     } else {
         setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
@@ -143,6 +188,7 @@ function App() {
 
   const deleteExpense = async (id: string) => {
     if (isConnected) {
+        if (!currentUser) { alert("Please login to delete expenses."); return; }
         await deleteExpenseFromDb(id);
     } else {
         setExpenses(prev => prev.filter(e => e.id !== id));
@@ -167,10 +213,12 @@ function App() {
   const handleDisconnect = () => {
       localStorage.removeItem('gpt_reseller_firebase_config');
       setIsConnected(false);
-      window.location.reload(); // Simple reload to clear firebase instances
+      setCurrentUser(null);
+      window.location.reload(); 
   };
 
   const handleMigration = async () => {
+      if (!currentUser) { alert("You must be logged in to upload data."); return; }
       if (!window.confirm("This will upload your local data to Firebase. Proceed?")) return;
       try {
           await migrateDataToFirebase(transactions, expenses);
@@ -180,6 +228,18 @@ function App() {
           alert("Migration failed. Check console.");
       }
   };
+
+  const handleLogin = async () => {
+      try {
+          await loginWithGoogle();
+      } catch (e) {
+          alert("Login failed. Check console for details.");
+      }
+  }
+
+  const handleLogout = async () => {
+      await logoutUser();
+  }
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
     <button
@@ -207,21 +267,52 @@ function App() {
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
               Rudmax Mastermind
             </h1>
-            <p className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+            <div className="mt-2">
                 {isConnected ? (
-                    <span className="flex items-center text-green-600 gap-1"><Database size={10}/> Cloud Synced</span>
+                    currentUser ? (
+                        <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 p-2 rounded border border-green-100">
+                            <ShieldCheck size={12} />
+                            <span className="truncate max-w-[140px]">{currentUser.email}</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-50 p-2 rounded border border-orange-100">
+                            <ShieldCheck size={12} />
+                            <span>Authentication Required</span>
+                        </div>
+                    )
                 ) : (
-                    <span className="flex items-center text-orange-500 gap-1"><Database size={10}/> Local Mode</span>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-100 p-2 rounded border border-slate-200">
+                         <Database size={12}/> <span>Local Storage Mode</span>
+                    </div>
                 )}
-            </p>
+            </div>
           </div>
           
           <nav className="flex-1 p-4 space-y-2">
             <NavItem view="dashboard" icon={LayoutDashboard} label="Dashboard" />
             <NavItem view="calculator" icon={Calculator} label="Campaign Calculator" />
-            <NavItem view="ai" icon={Bot} label="AI Analyst" />
             <NavItem view="settings" icon={Settings} label="Settings" />
           </nav>
+
+          {isConnected && (
+              <div className="p-4 border-t border-slate-100">
+                  {currentUser ? (
+                      <button 
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 p-2 rounded w-full transition-colors"
+                      >
+                          <LogOut size={16} /> Logout
+                      </button>
+                  ) : (
+                       <button 
+                        onClick={handleLogin}
+                        className="flex items-center gap-2 text-sm text-indigo-600 hover:bg-indigo-50 p-2 rounded w-full transition-colors"
+                      >
+                          <LogIn size={16} /> Login
+                      </button>
+                  )}
+              </div>
+          )}
         </div>
       </aside>
 
@@ -248,32 +339,54 @@ function App() {
               <h2 className="text-2xl font-bold text-slate-900">
                 {currentView === 'dashboard' && 'Dashboard Overview'}
                 {currentView === 'calculator' && 'Campaign Profitability'}
-                {currentView === 'ai' && 'AI Business Intelligence'}
                 {currentView === 'settings' && 'App Settings'}
               </h2>
             </header>
 
-            {currentView === 'dashboard' && (
-              <Dashboard 
-                transactions={transactions} 
-                expenses={expenses}
-                onAddTransaction={addTransaction}
-                onUpdateTransaction={updateTransaction}
-                onDeleteTransaction={deleteTransaction}
-                onAddExpense={addExpense}
-                onUpdateExpense={updateExpense}
-                onDeleteExpense={deleteExpense}
-              />
-            )}
+            {/* View Logic */}
             
-            {currentView === 'calculator' && (
-              <div className="max-w-3xl mx-auto">
-                 <ProfitCalculator />
-              </div>
+            {/* If Cloud Mode AND Logged Out -> Show Login Prompt (Except for Settings) */}
+            {isConnected && !currentUser && currentView !== 'settings' && (
+                <div className="flex flex-col items-center justify-center h-96 bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+                    <div className="bg-indigo-100 p-4 rounded-full mb-4">
+                        <ShieldCheck className="w-12 h-12 text-indigo-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">Authentication Required</h3>
+                    <p className="text-slate-500 max-w-md mb-6">
+                        You are connected to a secure database. Please sign in to view your sales and expenses.
+                    </p>
+                    <button 
+                        onClick={handleLogin}
+                        className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+                    >
+                        <LogIn size={20} />
+                        Sign In with Google
+                    </button>
+                </div>
             )}
 
-            {currentView === 'ai' && (
-              <AIAnalyst transactions={transactions} />
+            {/* If Local Mode OR (Cloud Mode AND Logged In) -> Show Content */}
+            {(!isConnected || (isConnected && currentUser)) && (
+                <>
+                    {currentView === 'dashboard' && (
+                    <Dashboard 
+                        transactions={transactions} 
+                        expenses={expenses}
+                        onAddTransaction={addTransaction}
+                        onUpdateTransaction={updateTransaction}
+                        onDeleteTransaction={deleteTransaction}
+                        onAddExpense={addExpense}
+                        onUpdateExpense={updateExpense}
+                        onDeleteExpense={deleteExpense}
+                    />
+                    )}
+                    
+                    {currentView === 'calculator' && (
+                    <div className="max-w-3xl mx-auto">
+                        <ProfitCalculator />
+                    </div>
+                    )}
+                </>
             )}
 
             {currentView === 'settings' && (
@@ -294,7 +407,8 @@ function App() {
                             <p className="font-semibold mb-2">How to connect:</p>
                             <ol className="list-decimal ml-4 space-y-1">
                                 <li>Go to Firebase Console and create a project.</li>
-                                <li>Create a Firestore Database (Start in Test Mode).</li>
+                                <li>Create a Firestore Database.</li>
+                                <li>Enable <strong>Authentication</strong> (Google Sign-In provider).</li>
                                 <li>Go to Project Settings and copy the "firebaseConfig" object.</li>
                                 <li>Paste it below.</li>
                             </ol>
@@ -314,22 +428,62 @@ function App() {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 text-green-800">
-                            <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
-                            <span className="font-medium">Connected to Firebase Firestore</span>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col gap-3">
+                            <div className="flex items-center gap-2 text-green-800 font-medium">
+                                <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
+                                <span>Connected to Firebase Firestore</span>
+                            </div>
+                            <div className="text-xs text-slate-500 font-mono break-all bg-white/50 p-2 rounded border border-green-100">
+                                Project ID: {JSON.parse(dbConfig).projectId || 'Unknown'}
+                            </div>
                         </div>
 
+                        {/* Auth Section in Settings */}
                         <div className="border-t border-slate-100 pt-6">
-                            <h4 className="font-semibold text-slate-800 mb-2">Data Migration</h4>
-                            <p className="text-sm text-slate-500 mb-4">If you have data saved on this device (Local Storage), you can upload it to the database now.</p>
-                            <button 
-                                onClick={handleMigration}
-                                className="flex items-center justify-center gap-2 w-full py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
-                            >
-                                <UploadCloud size={18} />
-                                Upload Local Data to Database
-                            </button>
+                             <h4 className="font-semibold text-slate-800 mb-4">Authentication</h4>
+                             {currentUser ? (
+                                 <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                     <div className="flex items-center gap-3">
+                                         {currentUser.photoURL ? (
+                                             <img src={currentUser.photoURL} alt="User" className="w-10 h-10 rounded-full" />
+                                         ) : (
+                                             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                                                 <User size={20} />
+                                             </div>
+                                         )}
+                                         <div>
+                                             <p className="text-sm font-semibold text-slate-900">{currentUser.displayName || 'User'}</p>
+                                             <p className="text-xs text-slate-500">{currentUser.email}</p>
+                                         </div>
+                                     </div>
+                                     <button onClick={handleLogout} className="text-red-600 text-sm font-medium hover:underline">Sign Out</button>
+                                 </div>
+                             ) : (
+                                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                                     <p className="text-sm text-blue-800 mb-3">Sign in to secure your database access.</p>
+                                     <button 
+                                        onClick={handleLogin}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                                     >
+                                         <LogIn size={16} /> Sign In with Google
+                                     </button>
+                                 </div>
+                             )}
                         </div>
+
+                        {currentUser && (
+                            <div className="border-t border-slate-100 pt-6">
+                                <h4 className="font-semibold text-slate-800 mb-2">Data Migration</h4>
+                                <p className="text-sm text-slate-500 mb-4">If you have data saved on this device (Local Storage), you can upload it to the database now.</p>
+                                <button 
+                                    onClick={handleMigration}
+                                    className="flex items-center justify-center gap-2 w-full py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    <UploadCloud size={18} />
+                                    Upload Local Data to Database
+                                </button>
+                            </div>
+                        )}
 
                         <div className="border-t border-slate-100 pt-6">
                             <button 

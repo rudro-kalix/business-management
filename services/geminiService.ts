@@ -1,40 +1,13 @@
+import { GoogleGenAI } from "@google/genai";
 import { Transaction } from "../types";
 
-let aiClient: Awaited<ReturnType<typeof createClient>> | null = null;
-
-const resolveApiKey = () => {
-  const metaEnv = (typeof import.meta !== "undefined" && (import.meta as any)?.env) || undefined;
-  return (
-    metaEnv?.VITE_GEMINI_API_KEY ||
-    (typeof process !== "undefined" ? process.env?.GEMINI_API_KEY : "") ||
-    (typeof process !== "undefined" ? process.env?.API_KEY : "") ||
-    ""
-  );
-};
-
-const createClient = async () => {
-  const apiKey = resolveApiKey();
-  if (!apiKey) {
-    throw new Error("Missing Gemini API key.");
-  }
-
-  const { GoogleGenAI } = await import("@google/genai");
-  return new GoogleGenAI({ apiKey });
-};
-
-const getClient = async () => {
-  if (!aiClient) {
-    aiClient = await createClient();
-  }
-  return aiClient;
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeBusinessData = async (
   transactions: Transaction[], 
   query: string
 ): Promise<string> => {
   try {
-    const ai = await getClient();
     const dataContext = JSON.stringify(transactions.slice(-50)); // Limit context to last 50 transactions
     
     // Note: In a real app we would pass expenses here too, but for now we focus on sales data
@@ -72,7 +45,6 @@ export const analyzeBusinessData = async (
 
 export const forecastSales = async (transactions: Transaction[]): Promise<string> => {
     try {
-        const ai = await getClient();
         const dataContext = JSON.stringify(transactions);
         const prompt = `
             Based on the following sales history, predict the trend for the next month.
