@@ -9,6 +9,7 @@ import {
   onSnapshot, 
   query, 
   orderBy,
+  where,
   Firestore,
   writeBatch
 } from 'firebase/firestore';
@@ -30,16 +31,12 @@ let auth: Auth | undefined;
 // Initialize Firebase with config provided by user at runtime
 export const initFirebase = (config: any) => {
   try {
-    // If app exists, we assume it's initialized. 
-    // Ideally we would check if config changed, but for this simple app, 
-    // if the user needs to change config, they should use the "Disconnect" button which reloads the page.
     if (!app) {
         app = initializeApp(config);
         db = getFirestore(app);
         auth = getAuth(app);
         console.log("Firebase initialized successfully");
     } else {
-        // Ensure auth is retrieved if app was already around but auth wasn't used yet (edge case)
         if (!auth) auth = getAuth(app);
         if (!db) db = getFirestore(app);
     }
@@ -62,7 +59,6 @@ export const loginWithGoogle = async () => {
     await signInWithPopup(auth, provider);
   } catch (error: any) {
     console.error("Login failed", error);
-    // Add context to common errors
     if (error.code === 'auth/unauthorized-domain') {
         throw new Error(`Domain not authorized. Go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this domain.`);
     } else if (error.code === 'auth/configuration-not-found') {
@@ -85,9 +81,14 @@ export const subscribeToAuth = (callback: (user: User | null) => void) => {
 // --- Transactions ---
 
 export const subscribeToTransactions = (callback: (data: Transaction[]) => void) => {
-  if (!db) return () => {};
+  if (!db || !auth?.currentUser) return () => {};
   
-  const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+  // SECURE: Only query data belonging to the logged-in user
+  const q = query(
+      collection(db, 'transactions'), 
+      where('userId', '==', auth.currentUser.uid),
+      orderBy('date', 'desc')
+  );
   
   return onSnapshot(q, (snapshot) => {
     const transactions = snapshot.docs.map(doc => ({
@@ -97,24 +98,34 @@ export const subscribeToTransactions = (callback: (data: Transaction[]) => void)
     callback(transactions);
   }, (error) => {
     console.error("Transaction subscription error:", error);
-    if (error.code === 'permission-denied') {
-        // This is expected if user is not logged in and rules require auth
-        console.warn("Permission denied (Auth required).");
-    }
   });
 };
 
 export const addTransactionToDb = async (transaction: Omit<Transaction, 'id'>) => {
-  if (!db) throw new Error("Database not connected");
-  // Ensure undefined values are not passed (Firebase doesn't like them)
-  const cleanData = JSON.parse(JSON.stringify(transaction));
+  if (!db || !auth?.currentUser) throw new Error("Database not connected or User not logged in");
+  
+  // SECURE: Attach User ID
+  const dataWithAuth = {
+      ...transaction,
+      userId: auth.currentUser.uid
+  };
+  
+  // Ensure undefined values are not passed
+  const cleanData = JSON.parse(JSON.stringify(dataWithAuth));
   await addDoc(collection(db, 'transactions'), cleanData);
 };
 
 export const updateTransactionInDb = async (transaction: Transaction) => {
-  if (!db) throw new Error("Database not connected");
+  if (!db || !auth?.currentUser) throw new Error("Database not connected");
+  
+  // SECURE: Ensure we don't accidentally strip the userId or change ownership
   const { id, ...data } = transaction;
-  const cleanData = JSON.parse(JSON.stringify(data));
+  const dataWithAuth = {
+      ...data,
+      userId: auth.currentUser.uid 
+  };
+  
+  const cleanData = JSON.parse(JSON.stringify(dataWithAuth));
   await updateDoc(doc(db, 'transactions', id), cleanData);
 };
 
@@ -126,9 +137,13 @@ export const deleteTransactionFromDb = async (id: string) => {
 // --- Expenses ---
 
 export const subscribeToExpenses = (callback: (data: Expense[]) => void) => {
-  if (!db) return () => {};
+  if (!db || !auth?.currentUser) return () => {};
   
-  const q = query(collection(db, 'expenses'), orderBy('date', 'desc'));
+  const q = query(
+      collection(db, 'expenses'), 
+      where('userId', '==', auth.currentUser.uid),
+      orderBy('date', 'desc')
+  );
   
   return onSnapshot(q, (snapshot) => {
     const expenses = snapshot.docs.map(doc => ({
@@ -142,15 +157,27 @@ export const subscribeToExpenses = (callback: (data: Expense[]) => void) => {
 };
 
 export const addExpenseToDb = async (expense: Omit<Expense, 'id'>) => {
-  if (!db) throw new Error("Database not connected");
-  const cleanData = JSON.parse(JSON.stringify(expense));
+  if (!db || !auth?.currentUser) throw new Error("Database not connected");
+  
+  const dataWithAuth = {
+      ...expense,
+      userId: auth.currentUser.uid
+  };
+
+  const cleanData = JSON.parse(JSON.stringify(dataWithAuth));
   await addDoc(collection(db, 'expenses'), cleanData);
 };
 
 export const updateExpenseInDb = async (expense: Expense) => {
-  if (!db) throw new Error("Database not connected");
+  if (!db || !auth?.currentUser) throw new Error("Database not connected");
+  
   const { id, ...data } = expense;
-  const cleanData = JSON.parse(JSON.stringify(data));
+  const dataWithAuth = {
+      ...data,
+      userId: auth.currentUser.uid
+  };
+
+  const cleanData = JSON.parse(JSON.stringify(dataWithAuth));
   await updateDoc(doc(db, 'expenses', id), cleanData);
 };
 
@@ -162,22 +189,22 @@ export const deleteExpenseFromDb = async (id: string) => {
 // --- Migration Tool ---
 
 export const migrateDataToFirebase = async (transactions: Transaction[], expenses: Expense[]) => {
-    if (!db) throw new Error("Database not connected");
+    if (!db || !auth?.currentUser) throw new Error("Database not connected or User not logged in");
     
     const batch = writeBatch(db);
+    const uid = auth.currentUser.uid;
     
-    // Limit batch size (Firestore limit is 500, we'll likely be under)
     transactions.forEach(t => {
-        // Create new doc ref (don't use old ID to avoid collisions, or use old ID if preferred)
         const ref = doc(collection(db, 'transactions')); 
         const { id, ...data } = t;
-        batch.set(ref, data);
+        // Attach UID during migration
+        batch.set(ref, { ...data, userId: uid });
     });
 
     expenses.forEach(e => {
         const ref = doc(collection(db, 'expenses'));
         const { id, ...data } = e;
-        batch.set(ref, data);
+        batch.set(ref, { ...data, userId: uid });
     });
 
     await batch.commit();

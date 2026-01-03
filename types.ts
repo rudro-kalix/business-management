@@ -6,6 +6,7 @@ export enum PlanType {
 
 export interface Transaction {
   id: string;
+  userId?: string; // Owner ID
   date: string;
   customerName?: string; // Optional field
   planType: PlanType;
@@ -19,6 +20,7 @@ export interface Transaction {
 
 export interface Expense {
   id: string;
+  userId?: string; // Owner ID
   date: string;
   category: 'Gmail' | 'Facebook Ads' | 'Poster' | 'Other';
   amount: number;
