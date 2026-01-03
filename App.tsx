@@ -32,8 +32,8 @@ const DEFAULT_FIREBASE_CONFIG = {
 
 // Initial Dummy Data
 const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: '1', date: '2023-10-24', customerName: 'Alice Johnson', planType: PlanType.PLUS, costPrice: 250, salePrice: 450, currency: 'BDT' },
-  { id: '2', date: '2023-10-25', customerName: 'TechCorp Inc', planType: PlanType.GOOGLE_AI_PRO, costPrice: 600, salePrice: 1000, currency: 'BDT' },
+  { id: '1', date: '2023-10-24', customerName: 'Client A', planType: PlanType.PLUS, costPrice: 250, salePrice: 450, currency: 'BDT' },
+  { id: '2', date: '2023-10-25', customerName: 'Client B', planType: PlanType.GOOGLE_AI_PRO, costPrice: 600, salePrice: 1000, currency: 'BDT' },
 ];
 
 const INITIAL_EXPENSES: Expense[] = [
