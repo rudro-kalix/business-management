@@ -30,13 +30,18 @@ let auth: Auth | undefined;
 // Initialize Firebase with config provided by user at runtime
 export const initFirebase = (config: any) => {
   try {
-    // Avoid re-initialization if already initialized with same config (simple check)
+    // If app exists, we assume it's initialized. 
+    // Ideally we would check if config changed, but for this simple app, 
+    // if the user needs to change config, they should use the "Disconnect" button which reloads the page.
     if (!app) {
         app = initializeApp(config);
         db = getFirestore(app);
         auth = getAuth(app);
         console.log("Firebase initialized successfully");
-        return true;
+    } else {
+        // Ensure auth is retrieved if app was already around but auth wasn't used yet (edge case)
+        if (!auth) auth = getAuth(app);
+        if (!db) db = getFirestore(app);
     }
     return true;
   } catch (error) {
@@ -50,12 +55,19 @@ export const isFirebaseInitialized = () => !!db;
 // --- Auth ---
 
 export const loginWithGoogle = async () => {
-  if (!auth) throw new Error("Auth not initialized");
+  if (!auth) throw new Error("Authentication service not initialized. Check your config.");
+  
   const provider = new GoogleAuthProvider();
   try {
     await signInWithPopup(auth, provider);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login failed", error);
+    // Add context to common errors
+    if (error.code === 'auth/unauthorized-domain') {
+        throw new Error(`Domain not authorized. Go to Firebase Console -> Authentication -> Settings -> Authorized Domains and add this domain.`);
+    } else if (error.code === 'auth/configuration-not-found') {
+        throw new Error(`Google Auth not enabled. Go to Firebase Console -> Authentication -> Sign-in method and enable Google.`);
+    }
     throw error;
   }
 };
@@ -86,7 +98,8 @@ export const subscribeToTransactions = (callback: (data: Transaction[]) => void)
   }, (error) => {
     console.error("Transaction subscription error:", error);
     if (error.code === 'permission-denied') {
-        alert("🔒 Access Denied\n\nYou are not authorized to view this data. Please ensure you are logged in and your Firestore rules allow access.");
+        // This is expected if user is not logged in and rules require auth
+        console.warn("Permission denied (Auth required).");
     }
   });
 };
@@ -125,9 +138,6 @@ export const subscribeToExpenses = (callback: (data: Expense[]) => void) => {
     callback(expenses);
   }, (error) => {
     console.error("Expense subscription error:", error);
-    if (error.code === 'permission-denied') {
-         console.warn("Permission denied for expenses.");
-    }
   });
 };
 

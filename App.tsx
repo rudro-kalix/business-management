@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Calculator, Menu, Settings, Database, UploadCloud, LogIn, LogOut, ShieldCheck, User } from 'lucide-react';
+import { LayoutDashboard, Calculator, Menu, Settings, Database, UploadCloud, LogIn, LogOut, ShieldCheck, User, Info } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { ProfitCalculator } from './components/ProfitCalculator';
 import { Transaction, PlanType, Expense } from './types';
@@ -88,12 +88,6 @@ function App() {
     if (isConnected) {
         const unsub = subscribeToAuth((user) => {
             setCurrentUser(user);
-            if (!user) {
-                // Clear sensitive data on logout
-                if (isFirebaseInitialized()) {
-                   // Optional: Clear data or keep showing empty state until login
-                }
-            }
         });
         return () => unsub();
     }
@@ -114,10 +108,6 @@ function App() {
             unsubExp();
         };
     } else if (isConnected && !currentUser) {
-        // If connected but not logged in, we shouldn't show stale local data if we want to be "secure", 
-        // but for UX we might show empty or a prompt.
-        // For now, let's keep the local data visible only if we are in "Local Mode" (not connected).
-        // Since isConnected is true here, we are in "Cloud Mode" but logged out.
         setTransactions([]);
         setExpenses([]);
     }
@@ -232,8 +222,8 @@ function App() {
   const handleLogin = async () => {
       try {
           await loginWithGoogle();
-      } catch (e) {
-          alert("Login failed. Check console for details.");
+      } catch (e: any) {
+          alert(`Login failed: ${e.message}`);
       }
   }
 
@@ -409,6 +399,11 @@ function App() {
                                 <li>Go to Firebase Console and create a project.</li>
                                 <li>Create a Firestore Database.</li>
                                 <li>Enable <strong>Authentication</strong> (Google Sign-In provider).</li>
+                                <li>
+                                    <strong>Important:</strong> Add this domain to Authorized Domains:
+                                    <br/>
+                                    <span className="text-xs font-mono bg-slate-200 px-1 rounded">{window.location.hostname}</span>
+                                </li>
                                 <li>Go to Project Settings and copy the "firebaseConfig" object.</li>
                                 <li>Paste it below.</li>
                             </ol>
@@ -461,12 +456,18 @@ function App() {
                              ) : (
                                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
                                      <p className="text-sm text-blue-800 mb-3">Sign in to secure your database access.</p>
-                                     <button 
-                                        onClick={handleLogin}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                                     >
-                                         <LogIn size={16} /> Sign In with Google
-                                     </button>
+                                     <div className="flex flex-col items-center gap-2">
+                                         <button 
+                                            onClick={handleLogin}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                                         >
+                                             <LogIn size={16} /> Sign In with Google
+                                         </button>
+                                         <div className="text-[10px] text-blue-600/70 flex items-center gap-1 mt-1">
+                                             <Info size={10} />
+                                             <span>Make sure {window.location.hostname} is authorized in Firebase</span>
+                                         </div>
+                                     </div>
                                  </div>
                              )}
                         </div>
